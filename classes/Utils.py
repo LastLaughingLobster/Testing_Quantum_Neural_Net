@@ -78,7 +78,6 @@ def train_on_dl(model, train_loader, test_dl=None, epochs=100, optimizer=None,
         if verbose == 1:
             print("training loss for epoch ", epoch, " is :", loss_list_val[-1])
         if test_dl is not None:
-            print("test_dl_is_not None")
             model.eval()
             val_loss, val_accuracy = eval_on_dataloader(model, test_dl, loss_obj)
             loss_list_val.append(val_loss)

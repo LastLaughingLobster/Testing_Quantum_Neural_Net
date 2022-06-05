@@ -20,12 +20,12 @@ IBMQ.save_account(API_TOKEN)
 provider = IBMQ.load_account()
 
 #Flag to run circuit on IBM'S QPUs
-RUN_ON_QPU = True
+RUN_ON_QPU = False
 
 #Name of IBM Instance. Useful for QPU processing and Noisy simulator
 QPU_INSTANCE_NAME = 'ibmq_manila'
 
-ADD_NOISE_TO_SIM = False
+ADD_NOISE_TO_SIM = True
 
 if RUN_ON_QPU:
     try:
@@ -50,7 +50,7 @@ else:
             print('QPU Simulator Enabled')
             print('Simulating {}'.format(QPU_INSTANCE_NAME))
         except:
-            print('QPU Simulator Error'):
+            print('QPU Simulator Error')
 
 
 class ClassicalNet(T.nn.Module):
