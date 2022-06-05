@@ -14,14 +14,30 @@ from qiskit import Aer, transpile, IBMQ
 
 processor = Aer.backends(name = 'qasm_simulator', method="statevector", )[0]
 
+simulator = Aer.backends(name = 'qasm_simulator', method="statevector", )[0]
+
+print(processor)
+
 API_TOKEN = '210fee10a48b26b8d09eacf5d8dc6c16b61380e6df4062640eb87aa59165cfd2e223e4775c8b2c17971e9cb44e0b1f835ed3544b27cf2c33406d08cc337baa83'
 IBMQ.save_account(API_TOKEN)
 provider = IBMQ.load_account()
 
-RUN_ON_QPU = True
+RUN_ON_QPU = False
 RUN_ON_GPU = False
 
 QPU_INSTANCE_NAME = 'ibmq_manila'
+
+NOISE = False
+
+try:
+    backend = provider.get_backend(QPU_INSTANCE_NAME)
+    noise_model = NoiseModel.from_backend(backend)
+
+    coupling_map = backend.configuration().coupling_map
+    basis_gates = noise_model.basis_gates
+    print('QPU Simulator Enabled')
+except:
+    print('QPU Error')
 
 if RUN_ON_GPU:
     try:
@@ -31,12 +47,7 @@ if RUN_ON_GPU:
         print("error = ",e)
 elif RUN_ON_QPU:
     try:
-        backend = provider.get_backend(QPU_INSTANCE_NAME)
-        noise_model = NoiseModel.from_backend(backend)
-
-        coupling_map = backend.configuration().coupling_map
-        basis_gates = noise_model.basis_gates
-        processor = backend
+        processor = provider.get_backend(QPU_INSTANCE_NAME)
         print('QPU Enabled')
     except:
         print('QPU Error')
@@ -47,10 +58,10 @@ else:
 
         coupling_map = backend.configuration().coupling_map
         basis_gates = noise_model.basis_gates
-        processor = backend
-        print('QPU Enabled')
+        print('QPU Simulator Enabled')
     except:
         print('QPU Error')
+
 
 
 
@@ -60,7 +71,8 @@ class ClassicalNet(T.nn.Module):
         super(ClassicalNet, self).__init__()
         self.extra_layer = extra_layer
         self.hid1 = T.nn.Linear(n, neurons)
-        if self.extra_layer is True:
+        self.qnn = None
+        if self.extra_layer == True:
             self.hid2 = T.nn.Linear(neurons, neurons)
         self.output = T.nn.Linear(neurons, 1)
         self.binary_classification = binary_classification
@@ -68,7 +80,7 @@ class ClassicalNet(T.nn.Module):
         T.nn.init.xavier_uniform_(self.hid1.weight)
         T.nn.init.zeros_(self.hid1.bias)
 
-        if self.extra_layer is True:
+        if self.extra_layer == True:
             T.nn.init.xavier_uniform_(self.hid2.weight)
             T.nn.init.zeros_(self.hid2.bias)
         T.nn.init.xavier_uniform_(self.output.weight)
@@ -81,15 +93,15 @@ class ClassicalNet(T.nn.Module):
         return sum([np.prod(p.size()) for p in model_parameters])
 
     def forward(self, x):
-        if self.binary_classification is True:
+        if self.binary_classification == True:
             z = T.tanh(self.hid1(x))
-            if self.extra_layer is True:
+            if self.extra_layer == True:
                 z = T.tanh(self.hid2(z))
             z = self.output(z)
             z = T.sigmoid(z)
         else:
             z = T.nn.functional.leaky_relu(self.hid1(x))
-            if self.extra_layer is True:
+            if self.extra_layer == True:
                 z = T.nn.functional.leaky_relu(self.hid2(z))
             z = self.output(z)
             z = T.nn.functional.leaky_relu(z)
@@ -122,7 +134,7 @@ def probabilities_per_qubit(counts):
     result = np.zeros(nqbit)
     for key, item in counts.items():
         for i in range(nqbit):
-            if key[i] is '0':
+            if key[i] == '0':
                 result[i] += counts[key] / shots
     return result
 
@@ -131,23 +143,22 @@ def measure_one_qubit(counts, measuring_qubit=0):
     shots = sum(counts.values())
     result = np.zeros(1)
     for key, item in counts.items():
-        if key[measuring_qubit] is '0':
+        if key[measuring_qubit] == '0':
             result[0] += counts[key] / shots
     return result
 
 
-""" def run_circuit(circuit, backend, shots=20):
+def run_circuit(circuit, backend, shots=20):
     compiled_circuit = transpile(circuit, backend)
     job = backend.run(compiled_circuit, shots=shots)
     result = job.result()
     # counts = result.get_counts(compiled_circuit)
     counts = result.get_counts()
-    return counts """
+    return counts
 
-def run_circuit(circuit, backend, shots=20):
-    print("Circuit")
+def run_circuit_with_noise(circuit, backend, shots=20):
     compiled_circuit = transpile(circuit, backend)
-    result = execute(compiled_circuit, Aer.get_backend('qasm_simulator'),
+    result = execute(compiled_circuit, backend,
                  coupling_map=coupling_map,
                  basis_gates=basis_gates,
                  noise_model=noise_model).result()
@@ -190,7 +201,7 @@ class Qnn:
 
     def predict(self, x_list, params=None):  # predicts via statevector evolve
 
-        if params is None:
+        if params == None:
             params = self.params
 
         qc_list = []
@@ -203,11 +214,11 @@ class Qnn:
         results = []
         for qc in qc_list:
             counts = qc.probabilities_dict()
-            if self.post_process is "parity":
+            if self.post_process == "parity":
                 result = parity(counts)
-            elif self.post_process is "probabilities_per_qubit":
+            elif self.post_process == "probabilities_per_qubit":
                 result = probabilities_per_qubit(counts)
-            elif self.post_process is "measure_one_qubit":
+            elif self.post_process == "measure_one_qubit":
                 result = measure_one_qubit(counts)
             else:
                 raise Exception("not implemented postprocessing method")
@@ -215,7 +226,7 @@ class Qnn:
             results += [result]
 
         # TO DO, fix this / move to parity function or move whole post_process into one method.
-        if self.post_process is "parity":
+        if self.post_process == "parity":
             # small rework to tensor shape
             result = np.zeros(len(results))
             for index in range(len(results)):
@@ -224,26 +235,29 @@ class Qnn:
 
         return results
 
-    def predict_with_backend(self, x_list, params=None, backend=processor, shots=20):  # _with_backend
+    def predict_with_backend(self, x_list, params=None, backend=processor, shots=20, noise=False):  # _with_backend
         # predicts via backend, for example qasm_backend. Generally slower.
 
-        if params is None:
+        if params == None:
             params = self.params
 
         qc_list = []
         for x in x_list:
             circ_ = self.circuit.assign_parameters(self.get_data_dict(params, x))
             circ_.measure_all()
-            counts = run_circuit(circ_, backend, shots)
+            if noise:
+                counts = run_circuit_with_noise(circ_, backend, shots)
+            else:
+                counts = run_circuit(circ_, backend, shots)
             qc_list += [counts]
             self.count_of_runs += 1
 
         results = []
         for counts in qc_list:
 
-            if self.post_process is "parity":
+            if self.post_process == "parity":
                 result = parity(counts)
-            elif self.post_process is "probabilities_per_qubit":
+            elif self.post_process == "probabilities_per_qubit":
                 result = probabilities_per_qubit(counts)
             else:
                 raise Exception("not implemented postprocessing method")
@@ -251,7 +265,7 @@ class Qnn:
             results += [result]
 
         # TO DO, fix this / move to parity function or move whole post_process into one method.
-        if self.post_process is "parity":
+        if self.post_process == "parity":
             # small rework to tensor shape
             result = np.zeros(len(results))
             for index in range(len(results)):
@@ -292,7 +306,7 @@ class HybridClassificationNet(T.nn.Module):
     def forward(self, x):
         x = self.qnn(x)
         x = self.cnn(x)
-        if self.binary_classification is True:
+        if self.binary_classification == True:
             x = T.sigmoid(x)
         else:
             x = T.leaky_relu(x)
