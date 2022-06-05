@@ -20,38 +20,37 @@ IBMQ.save_account(API_TOKEN)
 provider = IBMQ.load_account()
 
 #Flag to run circuit on IBM'S QPUs
-RUN_ON_QPU = False
+RUN_ON_QPU = True
 
 #Name of IBM Instance. Useful for QPU processing and Noisy simulator
 QPU_INSTANCE_NAME = 'ibmq_manila'
 
-ADD_NOISE_TO_SIM = True
 
-if RUN_ON_QPU:
-    try:
-        processor = provider.get_backend(QPU_INSTANCE_NAME)
-        print('QPU Enabled')
-    except:
-        print('QPU Error')
-else:
-    try:
-        processor.set_options(devices='GPU')
-        print('GPU Acceleration Enabled')
-    except AerError as e:
-        print("GPU Acceleration Disabled: ",e)
-    
-    if ADD_NOISE_TO_SIM:
+def setup(run_qpu = True, add_noise = False):
+    if run_qpu:
         try:
-            backend = provider.get_backend(QPU_INSTANCE_NAME)
-            noise_model = NoiseModel.from_backend(backend)
-
-            coupling_map = backend.configuration().coupling_map
-            basis_gates = noise_model.basis_gates
-            print('QPU Simulator Enabled')
-            print('Simulating {}'.format(QPU_INSTANCE_NAME))
+            processor = provider.get_backend(QPU_INSTANCE_NAME)
+            print('QPU Enabled')
         except:
-            print('QPU Simulator Error')
+            print('QPU Error')
+    else:
+        try:
+            processor.set_options(devices='GPU')
+            print('GPU Acceleration Enabled')
+        except AerError as e:
+            print("GPU Acceleration Disabled: ",e)
+            
+        if add_noise:
+            try:
+                backend = provider.get_backend(QPU_INSTANCE_NAME)
+                noise_model = NoiseModel.from_backend(backend)
 
+                coupling_map = backend.configuration().coupling_map
+                basis_gates = noise_model.basis_gates
+                print('QPU Simulator Enabled')
+                print('Simulating {}'.format(QPU_INSTANCE_NAME))
+            except:
+                print('QPU Simulator Error')
 
 class ClassicalNet(T.nn.Module):
 

@@ -192,7 +192,7 @@ def create_qnn_and_fit_and_store_result(save_path, circuit_type, dataset, n, epo
     return qnn1
 
 
-def create_hybridqnn_and_fit_and_store_result(save_path, circuit_type, dataset, n, epochs,
+def create_hybridqnn_and_fit_and_store_result(save_path, circuit_type, dataset, n, epochs, method,
                                               batch_size=10, loss_obj=T.nn.BCELoss(), test_size=0.2, lrn=0.05):
 
     print("--------create model-----------")
@@ -208,8 +208,8 @@ def create_hybridqnn_and_fit_and_store_result(save_path, circuit_type, dataset, 
     loss_array, _, acc_array = train_on_dl(qnn1, train_dl, test_dl, epochs=epochs,
                                            loss_obj=loss_obj, optimizer=T.optim.Adam(qnn1.parameters(), lr=lrn))
 
-    np.save(save_path + "_hybrid_" + circuit_type + '_bs' + str(batch_size) + '_loss.npy', loss_array)
-    np.save(save_path + "_hybrid_" + circuit_type + '_bs' + str(batch_size) + '_accuracy.npy', acc_array)
+    np.save(save_path + method +"_hybrid_" + circuit_type + '_bs' + str(batch_size) + '_loss.npy', loss_array)
+    np.save(save_path + method +"_hybrid_" + circuit_type + '_bs' + str(batch_size) + '_accuracy.npy', acc_array)
     print("--------end fitting-----------\n")
 
     return qnn1
