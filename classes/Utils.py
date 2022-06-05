@@ -112,10 +112,8 @@ def compute_loss(model, dataloader, loss_obj=T.nn.BCELoss()):
     total_loss = 0
     for i, (inputs, targets) in enumerate(dataloader):
         if isinstance(model.qnn, Qnn):
-            print("Using backend")
             output = T.tensor(model.qnn.predict_with_backend(inputs))
         else:
-            print("Not Using backend")
             output = model(inputs)
         target = T.reshape(targets, [1, -1])
         output = T.reshape(output, [1, -1])

@@ -14,38 +14,20 @@ from qiskit import Aer, transpile, IBMQ
 
 processor = Aer.backends(name = 'qasm_simulator', method="statevector", )[0]
 
-simulator = Aer.backends(name = 'qasm_simulator', method="statevector", )[0]
-
-print(processor)
 
 API_TOKEN = '210fee10a48b26b8d09eacf5d8dc6c16b61380e6df4062640eb87aa59165cfd2e223e4775c8b2c17971e9cb44e0b1f835ed3544b27cf2c33406d08cc337baa83'
 IBMQ.save_account(API_TOKEN)
 provider = IBMQ.load_account()
 
-RUN_ON_QPU = False
-RUN_ON_GPU = False
+#Flag to run circuit on IBM'S QPUs
+RUN_ON_QPU = True
 
+#Name of IBM Instance. Useful for QPU processing and Noisy simulator
 QPU_INSTANCE_NAME = 'ibmq_manila'
 
-NOISE = False
+ADD_NOISE_TO_SIM = False
 
-try:
-    backend = provider.get_backend(QPU_INSTANCE_NAME)
-    noise_model = NoiseModel.from_backend(backend)
-
-    coupling_map = backend.configuration().coupling_map
-    basis_gates = noise_model.basis_gates
-    print('QPU Simulator Enabled')
-except:
-    print('QPU Error')
-
-if RUN_ON_GPU:
-    try:
-        processor.set_options(devices='GPU')
-        print('GPU Acceleration Enabled')
-    except AerError as e:
-        print("error = ",e)
-elif RUN_ON_QPU:
+if RUN_ON_QPU:
     try:
         processor = provider.get_backend(QPU_INSTANCE_NAME)
         print('QPU Enabled')
@@ -53,16 +35,22 @@ elif RUN_ON_QPU:
         print('QPU Error')
 else:
     try:
-        backend = provider.get_backend(QPU_INSTANCE_NAME)
-        noise_model = NoiseModel.from_backend(backend)
+        processor.set_options(devices='GPU')
+        print('GPU Acceleration Enabled')
+    except AerError as e:
+        print("GPU Acceleration Disabled: ",e)
+    
+    if ADD_NOISE_TO_SIM:
+        try:
+            backend = provider.get_backend(QPU_INSTANCE_NAME)
+            noise_model = NoiseModel.from_backend(backend)
 
-        coupling_map = backend.configuration().coupling_map
-        basis_gates = noise_model.basis_gates
-        print('QPU Simulator Enabled')
-    except:
-        print('QPU Error')
-
-
+            coupling_map = backend.configuration().coupling_map
+            basis_gates = noise_model.basis_gates
+            print('QPU Simulator Enabled')
+            print('Simulating {}'.format(QPU_INSTANCE_NAME))
+        except:
+            print('QPU Simulator Error'):
 
 
 class ClassicalNet(T.nn.Module):
@@ -164,7 +152,6 @@ def run_circuit_with_noise(circuit, backend, shots=20):
                  noise_model=noise_model).result()
     counts = result.get_counts(0)
     return counts
-
 
 class Qnn:
     def __init__(self, circuit, post_process="parity"):
@@ -325,7 +312,7 @@ class QnnCircuitFunction(T.autograd.Function):
         ctx.shift = shift
         ctx.qnn = qnn
         ctx.weight = weight
-        result = ctx.qnn.predict_with_backend(input, weight)
+        result = ctx.qnn.predict_with_backend(input, weight, noise = ADD_NOISE_TO_SIM)
 
         predictions = T.tensor([np.array(result)])
         ctx.save_for_backward(input, predictions)
@@ -346,8 +333,8 @@ class QnnCircuitFunction(T.autograd.Function):
             direction[i] = 1
             shift_right = direction * ctx.shift
             shift_left = - direction * ctx.shift
-            expectation_right = ctx.qnn.predict_with_backend(input, params=ctx.weight + shift_right)
-            expectation_left = ctx.qnn.predict_with_backend(input, params=ctx.weight + shift_left)
+            expectation_right = ctx.qnn.predict_with_backend(input, params=ctx.weight + shift_right, noise = ADD_NOISE_TO_SIM)
+            expectation_left = ctx.qnn.predict_with_backend(input, params=ctx.weight + shift_left, noise = ADD_NOISE_TO_SIM)
             gradient = T.tensor([expectation_right]) - T.tensor([expectation_left])
             gradient *= grad_out.float()
             gradients.append(gradient)
